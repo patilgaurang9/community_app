@@ -27,6 +27,14 @@ export default function MemberDetail() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showFullBio, setShowFullBio] = useState(false);
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/updates');
+    }
+  };
+
   useEffect(() => {
     fetchMemberData();
   }, [id]);
@@ -176,7 +184,7 @@ export default function MemberDetail() {
           </Text>
           <Button
             title="Go Back"
-            onPress={() => router.back()}
+            onPress={handleBack}
             variant="outline"
             style={styles.backButton}
           />
@@ -191,7 +199,7 @@ export default function MemberDetail() {
       <View style={styles.headerContainer}>
         <TouchableOpacity
           style={styles.backButtonHeader}
-          onPress={() => router.back()}
+          onPress={handleBack}
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
