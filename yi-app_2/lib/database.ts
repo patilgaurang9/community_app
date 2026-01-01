@@ -14,8 +14,25 @@ export interface Profile {
   industry?: string;
   dob?: string;
   phone_number?: string;
+  bio?: string;
+  skills?: string[];
+  tags?: string[];
+  linkedin_url?: string;
+  whatsapp_number?: string;
+  member_since?: string;
+  batch?: string;
+  department?: string;
+  avatar_url?: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface Connection {
+  id: string;
+  requester_id: string;
+  receiver_id: string;
+  status: 'pending' | 'connected';
+  created_at: string;
 }
 
 /**
@@ -157,4 +174,158 @@ export async function getCurrentUserProfile(): Promise<Profile | null> {
     return null;
   }
 }
+
+/**
+ * Get all profiles (for members list)
+ * Excludes the current user
+ */
+export async function getAllProfiles(): Promise<Profile[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    let query = supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    // Exclude current user if logged in
+    if (user) {
+      query = query.neq('id', user.id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching profiles:', error);
+      return [];
+    }
+
+    return (data as Profile[]) || [];
+  } catch (err) {
+    console.error('Exception fetching profiles:', err);
+    return [];
+  }
+}
+
+/**
+ * CONNECTION HELPERS
+ */
+
+/**
+ * Get connection status between current user and another user
+ * Returns: 'none' | 'pending' | 'connected'
+ */
+export async function getConnectionStatus(
+  otherUserId: string
+): Promise<'none' | 'pending' | 'connected'> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return 'none';
+    }
+
+    const { data, error } = await supabase
+      .from('connections')
+      .select('*')
+      .or(`and(requester_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(requester_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+      .single();
+
+    if (error || !data) {
+      return 'none';
+    }
+
+    return data.status as 'pending' | 'connected';
+  } catch (err) {
+    console.error('Exception checking connection status:', err);
+    return 'none';
+  }
+}
+
+/**
+ * Create a connection request
+ */
+export async function createConnectionRequest(
+  receiverId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    const { error } = await supabase
+      .from('connections')
+      .insert({
+        requester_id: user.id,
+        receiver_id: receiverId,
+        status: 'pending',
+      });
+
+    if (error) {
+      console.error('Error creating connection request:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Exception creating connection request:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Get all connections for current user
+ */
+export async function getUserConnections(): Promise<Connection[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return [];
+    }
+
+    const { data, error } = await supabase
+      .from('connections')
+      .select('*')
+      .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
+      .eq('status', 'connected');
+
+    if (error) {
+      console.error('Error fetching connections:', error);
+      return [];
+    }
+
+    return (data as Connection[]) || [];
+  } catch (err) {
+    console.error('Exception fetching connections:', err);
+    return [];
+  }
+}
+
+/**
+ * Delete a connection
+ */
+export async function deleteConnection(
+  connectionId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('connections')
+      .delete()
+      .eq('id', connectionId);
+
+    if (error) {
+      console.error('Error deleting connection:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Exception deleting connection:', err);
+    return { success: false, error: err.message };
+  }
+}
+
 
