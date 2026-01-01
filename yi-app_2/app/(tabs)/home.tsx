@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Dimensions,
   Alert,
+  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +45,10 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  
+  // Ref for FlatList
+  const carouselRef = useRef<FlatList>(null);
 
   // Fetch events and RSVPs
   const fetchEvents = async () => {
@@ -124,12 +129,35 @@ export default function Home() {
     });
   }, [regularEvents, searchQuery]);
 
+  // Auto-rotation for Featured Carousel
+  useEffect(() => {
+    // Guard clause: Only auto-rotate if there are 2+ featured events
+    if (featuredEvents.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setActiveIndex((prevIndex) => {
+        const nextIndex = (prevIndex + 1) % featuredEvents.length;
+        
+        // Scroll to next slide
+        carouselRef.current?.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
+        
+        return nextIndex;
+      });
+    }, 3000); // 3 seconds
+
+    // Cleanup on unmount
+    return () => clearInterval(interval);
+  }, [featuredEvents.length]);
+
   const handleEventPress = (eventId: string) => {
     router.push(`/event/${eventId}`);
   };
 
   const handleHostEvent = () => {
-    Alert.alert('Host Event', 'Create event functionality coming soon!');
+    router.push('/host-event');
   };
 
   const handleFilterPress = () => {
@@ -206,38 +234,66 @@ export default function Home() {
         {featuredEvents.length > 0 && (
           <View style={styles.featuredSection}>
             <Text style={styles.sectionTitle}>Featured Events</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.carouselContent}
-            >
-              {featuredEvents.map((event) => {
-                const dateBadge = formatDateBadge(event.start_time);
-                return (
-                  <TouchableOpacity
-                    key={event.id}
-                    style={styles.featuredCard}
-                    onPress={() => handleEventPress(event.id)}
-                    activeOpacity={0.9}
-                  >
-                    {event.image_url ? (
-                      <Image source={{ uri: event.image_url }} style={styles.featuredImage} />
-                    ) : (
-                      <View style={[styles.featuredImage, styles.placeholderImage]}>
-                        <Ionicons name="calendar" size={48} color="#52525B" />
+            <View style={styles.carouselContainer}>
+              <FlatList
+                ref={carouselRef}
+                data={featuredEvents}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.id}
+                snapToInterval={CARD_WIDTH + 16} // Card width + gap
+                decelerationRate="fast"
+                contentContainerStyle={styles.carouselContent}
+                onScrollBeginDrag={() => {
+                  // Pause auto-rotation when user manually scrolls (optional UX enhancement)
+                }}
+                onMomentumScrollEnd={(event) => {
+                  const newIndex = Math.round(event.nativeEvent.contentOffset.x / (CARD_WIDTH + 16));
+                  setActiveIndex(newIndex);
+                }}
+                renderItem={({ item: event }) => {
+                  const dateBadge = formatDateBadge(event.start_time);
+                  return (
+                    <TouchableOpacity
+                      style={styles.featuredCard}
+                      onPress={() => handleEventPress(event.id)}
+                      activeOpacity={0.9}
+                    >
+                      {event.image_url ? (
+                        <Image source={{ uri: event.image_url }} style={styles.featuredImage} />
+                      ) : (
+                        <View style={[styles.featuredImage, styles.placeholderImage]}>
+                          <Ionicons name="calendar" size={48} color="#52525B" />
+                        </View>
+                      )}
+                      {/* Gradient Overlay */}
+                      <View style={styles.featuredOverlay}>
+                        <Text style={styles.featuredTitle} numberOfLines={2}>
+                          {event.title}
+                        </Text>
+                        <Text style={styles.featuredDate}>{formatDateTime(event.start_time)}</Text>
                       </View>
-                    )}
-                    {/* Gradient Overlay */}
-                    <View style={styles.featuredOverlay}>
-                      <Text style={styles.featuredTitle} numberOfLines={2}>
-                        {event.title}
-                      </Text>
-                      <Text style={styles.featuredDate}>{formatDateTime(event.start_time)}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+              
+              {/* Dot Indicators */}
+              {featuredEvents.length > 1 && (
+                <View style={styles.dotsContainer}>
+                  {featuredEvents.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dot,
+                        index === activeIndex && styles.dotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
           </View>
         )}
 
@@ -402,6 +458,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 20,
   },
+  carouselContainer: {
+    position: 'relative',
+  },
   carouselContent: {
     paddingHorizontal: 20,
     gap: 16,
@@ -412,6 +471,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: '#18181B',
+    marginRight: 16,
   },
   featuredImage: {
     width: '100%',
@@ -441,6 +501,25 @@ const styles = StyleSheet.create({
     color: '#E4E4E7',
     fontSize: 14,
     fontWeight: '500',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 8,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+    opacity: 0.3,
+  },
+  dotActive: {
+    opacity: 1,
+    width: 24,
+    borderRadius: 4,
   },
   upcomingSection: {
     paddingHorizontal: 20,
