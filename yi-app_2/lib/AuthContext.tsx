@@ -51,14 +51,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const inAuthGroup = segments[0] === 'login' || segments[0] === 'signup';
     const inIndex = segments.length === 0 || segments[0] === 'index';
+    const inCompleteProfile = segments[0] === 'complete-profile';
 
-    console.log('Auth State:', { user: !!user, segments, inAuthGroup, inIndex });
+    console.log('Auth State:', { user: !!user, segments, inAuthGroup, inIndex, inCompleteProfile });
 
     // User is not logged in
     if (!user) {
-      if (!inAuthGroup) {
-        console.log('Redirecting to login...');
-        router.replace('/login');
+      // Allow user to stay on index (landing page), login, or signup
+      if (!inAuthGroup && !inIndex) {
+        console.log('Redirecting to index (landing page)...');
+        router.replace('/');
       }
       return;
     }

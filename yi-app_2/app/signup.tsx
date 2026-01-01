@@ -55,13 +55,16 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
-      // 1. Sign up with Supabase Auth (includes user metadata)
+      // 1. Sign up with Supabase Auth
+      // We pass metadata so the Trigger can use it immediately for the name
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
           data: {
             full_name: fullName.trim(),
+            // City is passed here but the trigger might not use it, 
+            // so we explicitly update it below.
             city: city.trim(),
           },
         },
@@ -70,30 +73,27 @@ export default function Signup() {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Failed to create account');
 
-      // 2. Upsert profile into database (handles existing profiles)
-      const { error: profileError } = await supabase.from('profiles').upsert({
-        id: authData.user.id,
-        full_name: fullName.trim(),
-        email: email.trim(),
-        location: city.trim(),
-        created_at: new Date().toISOString(),
-      }, {
-        onConflict: 'id'
-      });
+      // 2. UPDATE the profile (Safe method)
+      // The trigger has already created the row. We just add the missing details.
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName.trim(), // Ensure name is exact
+          location: city.trim(),      // Add the city (Trigger usually misses this)
+        })
+        .eq('id', authData.user.id);  // Find the row the trigger created
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
-        // Don't throw - profile might be created by database trigger
-        console.warn('Profile upsert failed, may be handled by trigger');
+        console.error('Profile update error:', profileError);
+        // We warn but don't block. The account exists, user can fix profile later.
+        Alert.alert('Notice', 'Account created, but could not save City. Please update profile later.');
       }
 
-      // 3. Check if email confirmation is required
+      // 3. Handle Redirect
       if (authData.session) {
-        // Email confirmation disabled - user is logged in
         Alert.alert('Success', 'Account created successfully!');
-        // AuthContext will redirect to home
+        // AuthContext will detect session and redirect to Home
       } else {
-        // Email confirmation enabled - inform user
         Alert.alert(
           'Verify Your Email',
           'Please check your email and click the confirmation link to activate your account.',
@@ -103,7 +103,6 @@ export default function Signup() {
     } catch (err: any) {
       console.error('Signup error:', err);
       
-      // Handle specific Supabase errors
       let errorMessage = 'Failed to create account';
       if (err.message?.includes('already registered')) {
         errorMessage = 'This email is already registered. Please login instead.';
