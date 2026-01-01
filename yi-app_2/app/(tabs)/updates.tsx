@@ -13,6 +13,7 @@ import {
   FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import ScreenWrapper from '../../components/ScreenWrapper';
 
 interface Message {
@@ -52,6 +53,7 @@ interface OfferData {
 }
 
 export default function Updates() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -131,7 +133,12 @@ export default function Updates() {
   };
 
   const renderMemberCard = (member: MemberData) => (
-    <View key={member.id} style={styles.memberCard}>
+    <TouchableOpacity 
+      key={member.id} 
+      style={styles.memberCard}
+      onPress={() => router.push(`/member/${member.id}`)}
+      activeOpacity={0.7}
+    >
       <View style={styles.cardHeader}>
         <View style={styles.avatarPlaceholder}>
           <Text style={styles.avatarText}>{member.full_name.charAt(0).toUpperCase()}</Text>
@@ -140,6 +147,7 @@ export default function Updates() {
           <Text style={styles.memberName}>{member.full_name}</Text>
           {member.job_title && <Text style={styles.memberJobTitle}>{member.job_title}</Text>}
         </View>
+        <Ionicons name="chevron-forward" size={20} color="#71717A" />
       </View>
       <View style={styles.cardDetails}>
         {member.company && (
@@ -161,11 +169,16 @@ export default function Updates() {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderEventCard = (event: EventData) => (
-    <View key={event.id} style={styles.eventCard}>
+    <TouchableOpacity 
+      key={event.id} 
+      style={styles.eventCard}
+      onPress={() => router.push(`/event/${event.id}`)}
+      activeOpacity={0.7}
+    >
       <View style={styles.eventHeader}>
         <View style={styles.eventIconContainer}>
           <Ionicons name="calendar" size={20} color="#3B82F6" />
@@ -176,6 +189,7 @@ export default function Updates() {
             <Text style={styles.categoryText}>{event.category}</Text>
           </View>}
         </View>
+        <Ionicons name="chevron-forward" size={20} color="#71717A" />
       </View>
       {event.description && <Text style={styles.eventDescription}>{event.description}</Text>}
       <View style={styles.eventDetails}>
@@ -194,7 +208,7 @@ export default function Updates() {
           </View>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderOfferCard = (offer: OfferData) => (

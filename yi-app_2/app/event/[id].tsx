@@ -44,6 +44,14 @@ export default function EventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/updates');
+    }
+  };
+
   // State
   const [isLoading, setIsLoading] = useState(true);
   const [event, setEvent] = useState<Event | null>(null);
@@ -219,7 +227,7 @@ export default function EventDetail() {
         <View style={styles.heroOverlay} />
 
         {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <View style={styles.backButtonBlur}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </View>

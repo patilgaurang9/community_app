@@ -19,6 +19,7 @@ export default function TabsLayout() {
           fontSize: 18,
           fontWeight: '600',
         },
+        tabBarHideOnKeyboard: true,
         headerLeft: () => (
           <View style={styles.headerLeft}>
             <Text style={styles.logo}>YI</Text>
@@ -75,6 +76,15 @@ export default function TabsLayout() {
           title: 'Benefits',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="gift" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="birthdays"
+        options={{
+          title: 'Birthdays',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cake" size={size} color={color} />
           ),
         }}
       />

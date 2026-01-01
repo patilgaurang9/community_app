@@ -62,7 +62,7 @@ def chat():
                     "role": "system",
                     "content": """You are a query classifier. Categorize user queries into one of these types:
                     - "members": queries about finding members/profiles (company, industry, role, field, location, job title, etc.)
-                    - "events": queries about events (recent, upcoming, ongoing, by date, by category, etc.)
+                    - "events": queries about events (recent, upcoming, ongoing, by date, by category, by topic/keyword, etc.)
                     - "offers": queries about benefits/offers/deals/discounts
                     - "general": general questions not related to the above
                     
@@ -71,7 +71,11 @@ def chat():
                       * If user mentions "role" or "job" (like "role engineer" or "job developer"), put it in job_title field
                       * "industry" is for sectors like tech, healthcare, finance, etc.
                       * "role" is only for Member/Admin type roles in the community
-                    - For events: extract specific dates, timeframe (recent/upcoming/ongoing), category, keywords
+                    - For events: extract specific dates, timeframe (recent/upcoming/ongoing), category, and ALWAYS extract keywords
+                      * keyword should be the main topic/subject of events they're looking for
+                      * Examples: "cyber security events" -> keyword: "cyber security"
+                      * "product management event" -> keyword: "product management"
+                      * "tech networking" -> keyword: "tech networking"
                     - For offers: extract keywords about what type of offer/benefit they want
                     
                     Respond ONLY with a JSON object like:
@@ -86,18 +90,18 @@ def chat():
                             "date": "YYYY-MM-DD if specific date mentioned",
                             "timeframe": "recent|upcoming|ongoing",
                             "category": "event category if mentioned",
-                            "keyword": "main search terms for offers or general search"
+                            "keyword": "main search topic/keywords for events or offers"
                         }
                     }
                     
                     Examples:
-                    - "find members in tech industry" -> industry: "tech"
-                    - "show me members with role engineer" -> job_title: "engineer"
-                    - "find members with job developer" -> job_title: "developer"
-                    - "members who are managers" -> job_title: "manager"
-                    - "upcoming events" -> timeframe: "upcoming"
-                    - "events on 2026-01-15" -> date: "2026-01-15"
-                    - "offers related to gym" -> keyword: "gym"
+                    - "find members in tech industry" -> category: "members", industry: "tech"
+                    - "show me members with role engineer" -> category: "members", job_title: "engineer"
+                    - "cyber security events" -> category: "events", keyword: "cyber security"
+                    - "product management event" -> category: "events", keyword: "product management"
+                    - "upcoming events" -> category: "events", timeframe: "upcoming"
+                    - "events on 2026-01-15" -> category: "events", date: "2026-01-15"
+                    - "offers related to gym" -> category: "offers", keyword: "gym"
                     """
                 },
                 {
@@ -112,6 +116,10 @@ def chat():
         category_data = json.loads(category_response.choices[0].message.content)
         category = category_data.get("category")
         filters = category_data.get("filters", {})
+        
+        print(f"Query: '{user_query}'")
+        print(f"Categorized as: {category}")
+        print(f"Filters: {filters}")
         
         # Step 2: Handle based on category
         if category == "members":
@@ -268,16 +276,61 @@ def query_events(filters):
         if filters.get("category"):
             query = query.ilike("category", f"%{filters['category']}%")
         
-        # Keyword search (applied after initial filtering)
+        # Keyword search with robust scoring (applied after initial filtering)
         if filters.get("keyword"):
-            keyword = filters["keyword"]
-            results = query.execute()
-            filtered = [
-                r for r in results.data 
-                if any(keyword.lower() in str(r.get(field, "")).lower() 
-                       for field in ["title", "description", "category", "location_name"])
-            ]
-            return filtered[:20]
+            keyword = filters["keyword"].lower()
+            # If no time filter was applied, get all events
+            if not has_time_filter:
+                results = query.limit(200).execute()  # Get more events for better matching
+            else:
+                results = query.execute()
+            
+            print(f"Searching events with keyword: '{keyword}'")
+            print(f"Total events to search: {len(results.data)}")
+            
+            # Score each event based on relevance
+            scored_results = []
+            for event in results.data:
+                score = 0
+                title = str(event.get("title", "")).lower()
+                description = str(event.get("description", "")).lower()
+                category = str(event.get("category", "")).lower()
+                location = str(event.get("location_name", "")).lower()
+                host = str(event.get("host_name", "")).lower()
+                
+                # Exact match in title gets highest score
+                if keyword == title:
+                    score += 100
+                elif keyword in title:
+                    score += 50
+                
+                # Partial word matches in title
+                search_words = keyword.split()
+                for word in search_words:
+                    if len(word) > 2:  # Skip very short words
+                        if word in title:
+                            score += 20
+                        if word in description:
+                            score += 10
+                        if word in category:
+                            score += 15
+                        if word in location:
+                            score += 8
+                        if word in host:
+                            score += 5
+                
+                # Boost for category relevance
+                if keyword in category or category in keyword:
+                    score += 25
+                
+                if score > 0:
+                    scored_results.append((score, event))
+            
+            print(f"Found {len(scored_results)} matching events")
+            
+            # Sort by score (highest first) and return
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            return [event for score, event in scored_results[:20]]
         
         results = query.order("start_time", desc=False).limit(20).execute()
         return results.data
