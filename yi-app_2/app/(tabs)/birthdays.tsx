@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
+import FloatingChatButton from '../../components/FloatingChatButton';
 
 interface Profile {
   id: string;
@@ -347,16 +348,14 @@ export default function Birthdays() {
 
   if (isLoading) {
     return (
-      <ScreenWrapper>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#F97316" />
-        </View>
-      </ScreenWrapper>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#F97316" />
+      </View>
     );
   }
 
   return (
-    <ScreenWrapper>
+    <View style={styles.container}>
       <FlatList
         data={filteredProfiles}
         renderItem={renderBirthdayCard}
@@ -379,12 +378,15 @@ export default function Birthdays() {
             tintColor="#F97316"
           />
         }
-      />
-    </ScreenWrapper>
+      />      <FloatingChatButton />    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -392,11 +394,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   listContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 24,
   },
   headerContainer: {
-    paddingHorizontal: 4,
-    paddingTop: 16,
     paddingBottom: 16,
   },
   todayHighlightCard: {
@@ -502,7 +504,6 @@ const styles = StyleSheet.create({
     color: '#F97316',
   },
   birthdayCard: {
-    marginHorizontal: 4,
     marginBottom: 10,
     backgroundColor: '#18181B',
     borderRadius: 18,
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 12,
-    color: '#71717A',
+    color: '#F97316',
     fontWeight: '600',
   },
   actionsContainer: {

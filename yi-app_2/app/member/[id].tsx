@@ -16,6 +16,7 @@ import ActionIconButton from '../../components/ActionIconButton';
 import Button from '../../components/ui/Button';
 import { Profile, getProfile, getConnectionStatus, createConnectionRequest } from '../../lib/database';
 import { useAuth } from '../../lib/AuthContext';
+import FloatingChatButton from '../../components/FloatingChatButton';
 
 export default function MemberDetail() {
   const router = useRouter();
@@ -282,7 +283,7 @@ export default function MemberDetail() {
           <Text style={styles.sectionTitle}>Details</Text>
           <View style={styles.vitalsGrid}>
             <View style={styles.vitalCard}>
-              <Ionicons name="calendar-outline" size={24} color="#F59E0B" />
+              <Ionicons name="calendar-outline" size={24} color="#F97316" />
               <Text style={styles.vitalLabel}>Birthday</Text>
               <Text style={styles.vitalValue}>{formatBirthday(profile.dob)}</Text>
             </View>
@@ -330,6 +331,8 @@ export default function MemberDetail() {
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
+      
+      <FloatingChatButton />
     </ScreenWrapper>
   );
 }

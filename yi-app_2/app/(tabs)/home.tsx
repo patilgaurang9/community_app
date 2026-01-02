@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
+import FloatingChatButton from '../../components/FloatingChatButton';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 40;
@@ -379,11 +380,8 @@ export default function Home() {
           )}
         </View>
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={handleHostEvent} activeOpacity={0.8}>
-        <Ionicons name="add" size={28} color="#000000" />
-      </TouchableOpacity>
+      
+      <FloatingChatButton />
     </ScreenWrapper>
   );
 }
@@ -553,7 +551,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   dateMonth: {
-    color: '#F59E0B',
+    color: '#F97316',
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 4,
@@ -646,21 +644,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
 });

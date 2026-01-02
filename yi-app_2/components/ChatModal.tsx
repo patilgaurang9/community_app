@@ -1,20 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TextInput, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
-  FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import ScreenWrapper from '../../components/ScreenWrapper';
 
 interface Message {
   id: string;
@@ -52,15 +51,20 @@ interface OfferData {
   expiration_date?: string;
 }
 
-export default function Updates() {
+interface ChatModalProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+export default function ChatModal({ visible, onClose }: ChatModalProps) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'assistant',
-      content: "👋 Hi! I'm your AI assistant.\n\nI can help you with:\n• General questions\n• Find members by company, industry, or field\n• Search for events (recent, upcoming, or by date)\n• Discover offers and benefits\n\nWhat would you like to explore today?",
-      timestamp: new Date()
-    }
+      content: "👋 Hi! I'm your AI assistant. How can I help you today?",
+      timestamp: new Date(),
+    },
   ]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -73,8 +77,10 @@ export default function Updates() {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (visible) {
+      scrollToBottom();
+    }
+  }, [messages, visible]);
 
   const sendMessage = async () => {
     if (!inputText.trim() || isLoading) return;
@@ -83,24 +89,23 @@ export default function Updates() {
       id: Date.now().toString(),
       type: 'user',
       content: inputText.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setIsLoading(true);
     Keyboard.dismiss();
 
     try {
-      // ✅ UPDATED IP ADDRESS HERE
-      const response = await fetch('http://192.168.31.185:5000/api/chat', {
+      const response = await fetch('http://192.168.29.172:5000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          query: userMessage.content
-        })
+          query: userMessage.content,
+        }),
       });
 
       if (!response.ok) {
@@ -115,19 +120,18 @@ export default function Updates() {
         content: data.answer,
         category: data.category,
         data: data.data,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error("Fetch error:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I cannot connect to the server. Please ensure your phone is on the same Wi-Fi as your computer (192.168.31.185).',
-        timestamp: new Date()
+        content: 'Sorry, I encountered an error. Please try again.',
+        timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -137,12 +141,15 @@ export default function Updates() {
     <TouchableOpacity 
       key={member.id} 
       style={styles.memberCard}
-      onPress={() => router.push(`/member/${member.id}`)}
+      onPress={() => {
+        onClose();
+        router.push(`/member/${member.id}`);
+      }}
       activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
         <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarText}>{member.full_name ? member.full_name.charAt(0).toUpperCase() : '?'}</Text>
+          <Text style={styles.avatarText}>{member.full_name.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={styles.cardHeaderText}>
           <Text style={styles.memberName}>{member.full_name}</Text>
@@ -177,7 +184,10 @@ export default function Updates() {
     <TouchableOpacity 
       key={event.id} 
       style={styles.eventCard}
-      onPress={() => router.push(`/event/${event.id}`)}
+      onPress={() => {
+        onClose();
+        router.push(`/event/${event.id}`);
+      }}
       activeOpacity={0.7}
     >
       <View style={styles.eventHeader}>
@@ -192,7 +202,7 @@ export default function Updates() {
         </View>
         <Ionicons name="chevron-forward" size={20} color="#71717A" />
       </View>
-      {event.description && <Text style={styles.eventDescription} numberOfLines={2}>{event.description}</Text>}
+      {event.description && <Text style={styles.eventDescription}>{event.description}</Text>}
       <View style={styles.eventDetails}>
         {event.start_time && (
           <View style={styles.detailRow}>
@@ -241,22 +251,22 @@ export default function Updates() {
     </View>
   );
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  const renderMessage = (item: Message) => {
     const isUser = item.type === 'user';
     const hasData = !isUser && item.data && item.data.length > 0;
-
+    
     return (
-      <View style={[styles.messageContainer, isUser && styles.userMessageContainer]}>
+      <View
+        key={item.id}
+        style={[styles.messageContainer, isUser && styles.userMessageContainer]}
+      >
         <View style={[
           styles.messageBubble, 
           isUser ? styles.userBubble : styles.assistantBubble,
           hasData && styles.assistantBubbleWithData
         ]}>
-          <Text style={[styles.messageText, isUser && styles.userMessageText]}>
-            {item.content}
-          </Text>
+          <Text style={[styles.messageText, isUser && styles.userMessageText]}>{item.content}</Text>
           
-          {/* Render data cards if available */}
           {hasData && item.data && (
             <View style={styles.dataContainer}>
               {item.category === 'members' && item.data.map(renderMemberCard)}
@@ -272,109 +282,135 @@ export default function Updates() {
     );
   };
 
-  const quickQuestions = [
-    "Find members in tech industry",
-    "Show upcoming events",
-    "What offers are available?",
-    "Find members at Microsoft"
-  ];
-
-  const handleQuickQuestion = (question: string) => {
-    setInputText(question);
-  };
-
   return (
-    <ScreenWrapper style={styles.screenWrapper}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-        keyboardVerticalOffset={90}
-      >
-        {/* Messages */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.messagesContainer}
-          contentContainerStyle={styles.messagesContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <FlatList
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={item => item.id}
-            scrollEnabled={false}
-          />
-
-          {/* Quick Questions */}
-          {messages.length === 1 && (
-            <View style={styles.quickQuestionsContainer}>
-              <Text style={styles.quickQuestionsTitle}>Try asking:</Text>
-              {quickQuestions.map((question, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.quickQuestionButton}
-                  onPress={() => handleQuickQuestion(question)}
-                >
-                  <Text style={styles.quickQuestionText}>{question}</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#A1A1AA" />
-                </TouchableOpacity>
-              ))}
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIcon}>
+                <Ionicons name="sparkles" size={20} color="#F97316" />
+              </View>
+              <Text style={styles.headerTitle}>AI Assistant</Text>
             </View>
-          )}
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close-circle" size={28} color="#71717A" />
+            </TouchableOpacity>
+          </View>
 
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator color="#FFFFFF" />
-              <Text style={styles.loadingText}>Thinking...</Text>
-            </View>
-          )}
-        </ScrollView>
-
-        {/* Input Area */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Ask me anything..."
-            placeholderTextColor="#71717A"
-            value={inputText}
-            onChangeText={setInputText}
-            onSubmitEditing={sendMessage}
-            multiline
-            maxLength={500}
-            editable={!isLoading}
-          />
-          <TouchableOpacity
-            style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
-            onPress={sendMessage}
-            disabled={!inputText.trim() || isLoading}
+          {/* Messages */}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.chatContainer}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
           >
-            <Ionicons 
-              name="send" 
-              size={20} 
-              color={inputText.trim() && !isLoading ? '#FFFFFF' : '#71717A'} 
-            />
-          </TouchableOpacity>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.messagesContainer}
+              contentContainerStyle={styles.messagesContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {messages.map(renderMessage)}
+              {isLoading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#F97316" size="small" />
+                  <Text style={styles.loadingText}>Thinking...</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Input Area */}
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="Ask me anything..."
+                placeholderTextColor="#71717A"
+                value={inputText}
+                onChangeText={setInputText}
+                onSubmitEditing={sendMessage}
+                multiline
+                maxLength={500}
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={[styles.sendButton, (!inputText.trim() || isLoading) && styles.sendButtonDisabled]}
+                onPress={sendMessage}
+                disabled={!inputText.trim() || isLoading}
+              >
+                <Ionicons
+                  name="send"
+                  size={18}
+                  color={inputText.trim() && !isLoading ? '#FFFFFF' : '#71717A'}
+                />
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
         </View>
-      </KeyboardAvoidingView>
-    </ScreenWrapper>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  screenWrapper: {
-    paddingHorizontal: 0,
-  },
-  container: {
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
     backgroundColor: '#000000',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '75%',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: '#27272A',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272A',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#422D1E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F97316',
+  },
+  headerTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  chatContainer: {
+    flex: 1,
   },
   messagesContainer: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   messagesContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   messageContainer: {
     marginBottom: 16,
@@ -423,224 +459,6 @@ const styles = StyleSheet.create({
   userTimestamp: {
     marginRight: 8,
     marginLeft: 0,
-  },
-  dataContainer: {
-    marginTop: 14,
-    gap: 10,
-    width: '100%',
-  },
-  // Member Card Styles
-  memberCard: {
-    backgroundColor: '#18181B',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 12,
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#F97316',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  cardHeaderText: {
-    flex: 1,
-  },
-  memberName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-    letterSpacing: -0.2,
-  },
-  memberJobTitle: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  cardDetails: {
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailText: {
-    color: '#D4D4D8',
-    fontSize: 13,
-    flex: 1,
-    fontWeight: '500',
-  },
-  // Event Card Styles
-  eventCard: {
-    backgroundColor: '#18181B',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  eventHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    gap: 12,
-  },
-  eventIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#422D1E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#F97316',
-  },
-  eventHeaderText: {
-    flex: 1,
-  },
-  eventTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 6,
-    letterSpacing: -0.2,
-  },
-  categoryBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#27272A',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  categoryText: {
-    color: '#F97316',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  eventDescription: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  eventDetails: {
-    gap: 8,
-  },
-  // Offer Card Styles
-  offerCard: {
-    backgroundColor: '#18181B',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  offerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 12,
-  },
-  offerIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#052E1C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#10B981',
-  },
-  offerTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    flex: 1,
-    letterSpacing: -0.2,
-  },
-  offerDescription: {
-    color: '#A1A1AA',
-    fontSize: 13,
-    lineHeight: 19,
-    marginBottom: 12,
-    fontWeight: '500',
-  },
-  promoCodeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#27272A',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#3F3F46',
-    borderStyle: 'dashed',
-  },
-  promoCodeBox: {
-    flex: 1,
-  },
-  promoCodeLabel: {
-    color: '#71717A',
-    fontSize: 10,
-    fontWeight: '600',
-    marginBottom: 4,
-    letterSpacing: 0.5,
-  },
-  promoCode: {
-    color: '#10B981',
-    fontSize: 18,
-    fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-  },
-  expirationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  expirationText: {
-    color: '#EF4444',
-    fontSize: 11,
-  },
-  quickQuestionsContainer: {
-    marginTop: 24,
-  },
-  quickQuestionsTitle: {
-    color: '#71717A',
-    fontSize: 14,
-    marginBottom: 14,
-    fontWeight: '600',
-  },
-  quickQuestionButton: {
-    backgroundColor: '#18181B',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  quickQuestionText: {
-    color: '#E4E4E7',
-    fontSize: 14,
-    fontWeight: '500',
   },
   loadingContainer: {
     flexDirection: 'row',
@@ -693,5 +511,196 @@ const styles = StyleSheet.create({
     backgroundColor: '#27272A',
     shadowOpacity: 0,
   },
+  dataContainer: {
+    marginTop: 14,
+    gap: 10,
+    width: '100%',
+  },
+  // Member Card Styles
+  memberCard: {
+    backgroundColor: '#18181B',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  avatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#F97316',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  cardHeaderText: {
+    flex: 1,
+  },
+  memberName: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  memberJobTitle: {
+    color: '#A1A1AA',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  cardDetails: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    color: '#A1A1AA',
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  // Event Card Styles
+  eventCard: {
+    backgroundColor: '#18181B',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  eventHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  eventIconContainer: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#422D1E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#F97316',
+  },
+  eventHeaderText: {
+    flex: 1,
+  },
+  eventTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  categoryBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#27272A',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  categoryText: {
+    color: '#A1A1AA',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  eventDescription: {
+    color: '#A1A1AA',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  eventDetails: {
+    gap: 8,
+  },
+  // Offer Card Styles
+  offerCard: {
+    backgroundColor: '#18181B',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  offerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  offerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#052E1C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#10B981',
+  },
+  offerTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  offerDescription: {
+    color: '#A1A1AA',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  promoCodeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  promoCodeBox: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#27272A',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#0A0A0A',
+  },
+  promoCodeLabel: {
+    color: '#71717A',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  promoCode: {
+    color: '#10B981',
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    letterSpacing: 1,
+  },
+  expirationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  expirationText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '600',
+  },
 });
-
