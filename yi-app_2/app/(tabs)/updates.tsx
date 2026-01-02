@@ -92,8 +92,8 @@ export default function Updates() {
     Keyboard.dismiss();
 
     try {
-      // Replace with your backend URL
-      const response = await fetch('http://192.168.29.172:5000/api/chat', {
+      // ✅ UPDATED IP ADDRESS HERE
+      const response = await fetch('http://192.168.31.185:5000/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,10 +120,11 @@ export default function Updates() {
 
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
+      console.error("Fetch error:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I encountered an error. Please make sure the backend server is running and try again.',
+        content: 'Sorry, I cannot connect to the server. Please ensure your phone is on the same Wi-Fi as your computer (192.168.31.185).',
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -141,7 +142,7 @@ export default function Updates() {
     >
       <View style={styles.cardHeader}>
         <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarText}>{member.full_name.charAt(0).toUpperCase()}</Text>
+          <Text style={styles.avatarText}>{member.full_name ? member.full_name.charAt(0).toUpperCase() : '?'}</Text>
         </View>
         <View style={styles.cardHeaderText}>
           <Text style={styles.memberName}>{member.full_name}</Text>
@@ -191,7 +192,7 @@ export default function Updates() {
         </View>
         <Ionicons name="chevron-forward" size={20} color="#71717A" />
       </View>
-      {event.description && <Text style={styles.eventDescription}>{event.description}</Text>}
+      {event.description && <Text style={styles.eventDescription} numberOfLines={2}>{event.description}</Text>}
       <View style={styles.eventDetails}>
         {event.start_time && (
           <View style={styles.detailRow}>
@@ -680,5 +681,4 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
 });
-
 
