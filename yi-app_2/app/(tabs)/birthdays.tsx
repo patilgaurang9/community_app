@@ -378,7 +378,10 @@ export default function Birthdays() {
             tintColor="#F97316"
           />
         }
-      />      <FloatingChatButton />    </View>
+      />
+      
+      <FloatingChatButton />
+    </View>
   );
 }
 
