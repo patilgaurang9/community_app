@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
+import FloatingChatButton from '../../components/FloatingChatButton';
 
 const { width } = Dimensions.get('window');
 
@@ -269,7 +270,7 @@ export default function EventDetail() {
           {/* Date & Time Row */}
           <View style={styles.infoRow}>
             <View style={styles.iconContainer}>
-              <Ionicons name="calendar-outline" size={24} color="#F59E0B" />
+              <Ionicons name="calendar-outline" size={24} color="#F97316" />
             </View>
             <Text style={styles.infoText}>{formatDateTime(event.start_time, event.end_time)}</Text>
           </View>
@@ -352,6 +353,8 @@ export default function EventDetail() {
           )}
         </TouchableOpacity>
       </View>
+      
+      <FloatingChatButton />
     </View>
   );
 }

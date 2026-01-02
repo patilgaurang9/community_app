@@ -16,6 +16,7 @@ import MemberCard from '../../components/MemberCard';
 import FilterModal from '../../components/FilterModal';
 import { Profile, getAllProfiles, createConnectionRequest, getConnectionStatus } from '../../lib/database';
 import { useAuth } from '../../lib/AuthContext';
+import FloatingChatButton from '../../components/FloatingChatButton';
 
 export default function Members() {
   const router = useRouter();
@@ -241,6 +242,8 @@ export default function Members() {
         selectedTag={selectedTag}
         onSelectTag={handleApplyFilter}
       />
+      
+      <FloatingChatButton />
     </ScreenWrapper>
   );
 }

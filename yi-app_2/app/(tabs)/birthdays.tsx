@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
+import FloatingChatButton from '../../components/FloatingChatButton';
 
 interface Profile {
   id: string;
@@ -377,8 +378,7 @@ export default function Birthdays() {
             tintColor="#F97316"
           />
         }
-      />
-    </View>
+      />      <FloatingChatButton />    </View>
   );
 }
 
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 12,
-    color: '#71717A',
+    color: '#F97316',
     fontWeight: '600',
   },
   actionsContainer: {
