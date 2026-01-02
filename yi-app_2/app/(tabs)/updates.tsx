@@ -92,7 +92,7 @@ export default function Updates() {
     Keyboard.dismiss();
 
     try {
-      // ✅ UPDATED IP ADDRESS HERE
+      // ✅ UPDATED IP ADDRESS TO 192.168.31.185
       const response = await fetch('http://192.168.31.185:5000/api/chat', {
         method: 'POST',
         headers: {
@@ -694,4 +694,3 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
   },
 });
-
