@@ -6,18 +6,12 @@ import Button from './ui/Button';
 
 interface MemberCardProps {
   profile: Profile;
-  connectionStatus: 'none' | 'pending' | 'connected';
   onPress: () => void;
-  onConnect: () => void;
-  isConnecting?: boolean;
 }
 
 export default function MemberCard({
   profile,
-  connectionStatus,
   onPress,
-  onConnect,
-  isConnecting = false,
 }: MemberCardProps) {
   const getInitials = (name: string) => {
     const parts = name.trim().split(' ');
@@ -36,20 +30,6 @@ export default function MemberCard({
     }
     return null;
   };
-
-  const getButtonText = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return 'Connected';
-      case 'pending':
-        return 'Request Sent';
-      case 'none':
-      default:
-        return 'Connect';
-    }
-  };
-
-  const isButtonDisabled = connectionStatus !== 'none';
 
   return (
     <TouchableOpacity
@@ -90,48 +70,6 @@ export default function MemberCard({
               </View>
             </View>
           )}
-        </View>
-
-        {/* Connect Button */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.connectButton,
-              isButtonDisabled && styles.connectButtonDisabled,
-            ]}
-            onPress={(e) => {
-              e.stopPropagation();
-              if (!isButtonDisabled) {
-                onConnect();
-              }
-            }}
-            disabled={isButtonDisabled || isConnecting}
-            activeOpacity={0.8}
-          >
-            {isConnecting ? (
-              <Ionicons name="hourglass-outline" size={16} color="#A1A1AA" />
-            ) : (
-              <>
-                {connectionStatus === 'connected' && (
-                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                )}
-                {connectionStatus === 'pending' && (
-                  <Ionicons name="time-outline" size={16} color="#F59E0B" />
-                )}
-                {connectionStatus === 'none' && (
-                  <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
-                )}
-                <Text
-                  style={[
-                    styles.connectButtonText,
-                    isButtonDisabled && styles.connectButtonTextDisabled,
-                  ]}
-                >
-                  {getButtonText()}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -198,29 +136,6 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
     fontSize: 12,
     fontWeight: '600',
-  },
-  buttonContainer: {
-    justifyContent: 'center',
-  },
-  connectButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  connectButtonDisabled: {
-    backgroundColor: '#27272A',
-  },
-  connectButtonText: {
-    color: '#000000',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  connectButtonTextDisabled: {
-    color: '#A1A1AA',
   },
 });
 

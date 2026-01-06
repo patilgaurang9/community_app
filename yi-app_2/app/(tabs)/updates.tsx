@@ -16,6 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import ScreenWrapper from '../../components/ScreenWrapper';
 
+// --- CONFIGURATION ---
+// accessing the variable from .env
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.31.185:5000'; 
+// ---------------------
+
 interface Message {
   id: string;
   type: 'user' | 'assistant';
@@ -92,8 +97,8 @@ export default function Updates() {
     Keyboard.dismiss();
 
     try {
-      // ✅ UPDATED IP ADDRESS TO 192.168.31.185
-      const response = await fetch('http://192.168.31.185:5000/api/chat', {
+      // ✅ UPDATED: Uses the variable from .env
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +129,8 @@ export default function Updates() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: 'Sorry, I cannot connect to the server. Please ensure your phone is on the same Wi-Fi as your computer (192.168.31.185).',
+        // ✅ UPDATED: Error message now dynamically shows the URL it tried to hit
+        content: `Sorry, I cannot connect to the server. Please ensure your phone is on the same Wi-Fi as your computer (${API_URL}).`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);

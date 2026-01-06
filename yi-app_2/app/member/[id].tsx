@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import ActionIconButton from '../../components/ActionIconButton';
 import Button from '../../components/ui/Button';
-import { Profile, getProfile, getConnectionStatus, createConnectionRequest } from '../../lib/database';
+import { Profile, getProfile } from '../../lib/database';
 import { useAuth } from '../../lib/AuthContext';
 import FloatingChatButton from '../../components/FloatingChatButton';
 
@@ -24,8 +24,6 @@ export default function MemberDetail() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState<'none' | 'pending' | 'connected'>('none');
-  const [isConnecting, setIsConnecting] = useState(false);
   const [showFullBio, setShowFullBio] = useState(false);
 
   const handleBack = () => {
@@ -49,9 +47,6 @@ export default function MemberDetail() {
     try {
       const profileData = await getProfile(id);
       setProfile(profileData);
-
-      const status = await getConnectionStatus(id);
-      setConnectionStatus(status);
     } catch (error) {
       console.error('Error fetching member data:', error);
     } finally {
@@ -100,21 +95,6 @@ export default function MemberDetail() {
     Linking.openURL(profile.linkedin_url);
   };
 
-  const handleConnect = async () => {
-    if (!id || connectionStatus !== 'none') return;
-
-    setIsConnecting(true);
-    const result = await createConnectionRequest(id);
-
-    if (result.success) {
-      setConnectionStatus('pending');
-      Alert.alert('Success', 'Connection request sent!');
-    } else {
-      Alert.alert('Error', result.error || 'Failed to send connection request');
-    }
-    setIsConnecting(false);
-  };
-
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -125,18 +105,6 @@ export default function MemberDetail() {
     if (!dob) return 'N/A';
     const date = new Date(dob);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
-  const getConnectionButtonText = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return 'Message';
-      case 'pending':
-        return 'Request Sent';
-      case 'none':
-      default:
-        return 'Connect';
-    }
   };
 
   const renderBio = () => {
@@ -264,16 +232,6 @@ export default function MemberDetail() {
             disabled={!profile.linkedin_url}
           />
         </View>
-
-        {/* Connection Status Button */}
-        <Button
-          title={getConnectionButtonText()}
-          onPress={handleConnect}
-          variant={connectionStatus === 'none' ? 'primary' : 'secondary'}
-          isLoading={isConnecting}
-          disabled={connectionStatus !== 'none'}
-          style={styles.connectionButton}
-        />
 
         {/* About Section */}
         {renderBio()}
@@ -461,10 +419,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#27272A',
-  },
-  connectionButton: {
-    marginHorizontal: 20,
-    marginTop: 16,
   },
   section: {
     paddingHorizontal: 20,

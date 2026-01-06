@@ -1,18 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Redirect } from 'expo-router';
 import ScreenWrapper from '../components/ScreenWrapper';
 import Button from '../components/ui/Button';
 import { useAuth } from '../lib/AuthContext';
 
 export default function Index() {
   const router = useRouter();
-  const { user, isLoading } = useAuth();
+  const { user, session, isLoading, isProfileComplete } = useAuth();
 
-  // If user is logged in, AuthContext will redirect to home
-  // This is the Landing Page for non-logged-in users
-  
-  if (isLoading) {
+  // If user is logged in and profile is complete, redirect to home
+  if (session && isProfileComplete === true) {
+    return <Redirect href="/(tabs)/home" />;
+  }
+
+  // If user is logged in but profile is incomplete, redirect to complete-profile
+  if (session && isProfileComplete === false) {
+    return <Redirect href="/complete-profile" />;
+  }
+
+  // If user is logged in but profile check is still loading, show loading
+  if (isLoading || (session && isProfileComplete === null)) {
     return (
       <ScreenWrapper>
         <View style={styles.loadingContainer}>
@@ -23,38 +31,33 @@ export default function Index() {
   }
 
   // Show landing page if not logged in
-  if (!user) {
-    return (
-      <ScreenWrapper>
-        <View style={styles.container}>
-          <View style={styles.hero}>
-            <Text style={styles.title}>Welcome to Community</Text>
-            <Text style={styles.subtitle}>
-              Connect with professionals and grow your network
-            </Text>
-          </View>
-
-          <View style={styles.actions}>
-            <Button
-              title="Log In"
-              onPress={() => router.push('/login')}
-              variant="primary"
-              style={styles.button}
-            />
-            <Button
-              title="Create Account"
-              onPress={() => router.push('/signup')}
-              variant="outline"
-              style={styles.button}
-            />
-          </View>
+  return (
+    <ScreenWrapper>
+      <View style={styles.container}>
+        <View style={styles.hero}>
+          <Text style={styles.title}>Welcome to Community</Text>
+          <Text style={styles.subtitle}>
+            Connect with professionals and grow your network
+          </Text>
         </View>
-      </ScreenWrapper>
-    );
-  }
 
-  // If user is logged in, show nothing (AuthContext will redirect)
-  return null;
+        <View style={styles.actions}>
+          <Button
+            title="Log In"
+            onPress={() => router.push('/login')}
+            variant="primary"
+            style={styles.button}
+          />
+          <Button
+            title="Create Account"
+            onPress={() => router.push('/signup')}
+            variant="outline"
+            style={styles.button}
+          />
+        </View>
+      </View>
+    </ScreenWrapper>
+  );
 }
 
 const styles = StyleSheet.create({

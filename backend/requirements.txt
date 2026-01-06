@@ -64,3 +64,4 @@ uv==0.9.21
 websockets==15.0.1
 Werkzeug==3.1.4
 yarl==1.22.0
+gunicorn

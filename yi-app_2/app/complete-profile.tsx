@@ -1,459 +1,348 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  Alert, 
+  StyleSheet, 
+  ScrollView, 
+  KeyboardAvoidingView, 
+  Platform 
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import ScreenWrapper from '../components/ScreenWrapper';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../lib/AuthContext';
+import ScreenWrapper from '../components/ScreenWrapper';
 
-// Strict TypeScript interface for profile data
-interface ProfileUpdateData {
-  bio: string;
-  phone_number: string;
-  job_title: string;
-  company: string;
-  industry: string;
-  linkedin_url: string;
-  batch_year: string;
-  dob: string;
-  job_start_date: string;
-  tags: string[];
-  is_profile_complete: boolean;
-}
+// 1. IMPORTS
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons'; 
 
 export default function CompleteProfile() {
-  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
 
-  // Protect this route - redirect to login if no user
-  useEffect(() => {
-    if (!user) {
-      console.log('No user found in complete-profile, redirecting to login');
-      router.replace('/login');
-    }
-  }, [user]);
-
-  // Form state
-  const [bio, setBio] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
+  // --- FORM STATE ---
+  const [fullName, setFullName] = useState('');
   const [company, setCompany] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [industry, setIndustry] = useState('');
-  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [location, setLocation] = useState('');
+  const [linkedin, setLinkedin] = useState('');
+  const [bio, setBio] = useState('');
+  const [phone, setPhone] = useState('');
   const [batchYear, setBatchYear] = useState('');
-  const [dob, setDob] = useState('');
+   
+  const [dob, setDob] = useState(''); 
   const [jobStartDate, setJobStartDate] = useState('');
-  
-  // Tags state (3 separate states)
+
   const [tag1, setTag1] = useState('');
   const [tag2, setTag2] = useState('');
   const [tag3, setTag3] = useState('');
 
-  // Validation helper with strict rules
-  const validateInputs = (): string | null => {
-    // Bio validation
-    if (!bio.trim()) {
-      return 'Bio is required';
-    }
-    if (bio.trim().length < 10) {
-      return 'Bio must be at least 10 characters';
-    }
+  // --- DATE PICKER STATE ---
+  const [pickerMode, setPickerMode] = useState(null); // 'dob' | 'job' | null
+  const [pickerDate, setPickerDate] = useState(new Date());
 
-    // Phone Number validation (10-15 digits)
-    if (!phoneNumber.trim()) {
-      return 'Phone Number is required';
-    }
-    const phoneRegex = /^\+?[\d\s\-()]{10,15}$/;
-    if (!phoneRegex.test(phoneNumber.trim())) {
-      return 'Phone Number must be 10-15 digits';
-    }
+  // --- HELPERS ---
 
-    // Job Title validation
-    if (!jobTitle.trim()) {
-      return 'Job Title is required';
-    }
-
-    // Company validation
-    if (!company.trim()) {
-      return 'Company is required';
-    }
-
-    // Industry validation
-    if (!industry.trim()) {
-      return 'Industry is required';
-    }
-
-    // LinkedIn URL validation (must start with http/https)
-    if (!linkedinUrl.trim()) {
-      return 'LinkedIn URL is required';
-    }
-    const urlRegex = /^https?:\/\/.+/i;
-    if (!urlRegex.test(linkedinUrl.trim())) {
-      return 'LinkedIn URL must start with http:// or https://';
-    }
-
-    // Batch Year validation (4 digits)
-    if (!batchYear.trim()) {
-      return 'Batch Year is required';
-    }
-    const yearRegex = /^\d{4}$/;
-    if (!yearRegex.test(batchYear.trim())) {
-      return 'Batch Year must be exactly 4 digits (e.g., 2024)';
-    }
-    const year = parseInt(batchYear.trim());
-    if (year < 1950 || year > 2050) {
-      return 'Batch Year must be between 1950 and 2050';
-    }
-
-    // DOB validation (strict YYYY-MM-DD)
-    if (!dob.trim()) {
-      return 'Date of Birth is required';
-    }
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(dob.trim())) {
-      return 'Date of Birth must be in YYYY-MM-DD format';
-    }
-    const dobDate = new Date(dob.trim());
-    if (isNaN(dobDate.getTime())) {
-      return 'Date of Birth must be a valid date';
-    }
-
-    // Job Start Date validation (strict YYYY-MM-DD)
-    if (!jobStartDate.trim()) {
-      return 'Job Start Date is required';
-    }
-    if (!dateRegex.test(jobStartDate.trim())) {
-      return 'Job Start Date must be in YYYY-MM-DD format';
-    }
-    const jobDate = new Date(jobStartDate.trim());
-    if (isNaN(jobDate.getTime())) {
-      return 'Job Start Date must be a valid date';
-    }
-
-    // Tag 1 validation (mandatory)
-    if (!tag1.trim()) {
-      return 'At least Tag 1 is required';
-    }
-
-    return null; // All validations passed
+  // 1. Handle Typing (Auto-slash)
+  const handleDateChange = (text, setter) => {
+    const cleaned = text.replace(/[^0-9]/g, '');
+    let formatted = cleaned;
+    if (cleaned.length > 2) formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+    if (cleaned.length > 4) formatted = formatted.slice(0, 5) + '/' + formatted.slice(5);
+    if (formatted.length <= 10) setter(formatted);
   };
 
-  const handleCompleteSetup = async () => {
-    // Validate inputs first
-    const errorMessage = validateInputs();
-    if (errorMessage) {
-      Alert.alert('Validation Error', errorMessage);
+  // 2. Open Picker (Convert String to Date Object)
+  const openDatePicker = (type) => {
+    const currentValue = type === 'dob' ? dob : jobStartDate;
+    
+    // Default to today
+    let dateToOpen = new Date();
+    
+    // Try to parse existing text (DD/MM/YYYY)
+    if (currentValue.length === 10) {
+      const [day, month, year] = currentValue.split('/');
+      // Note: MM-DD-YYYY is easier for JS to parse usually, or use explicit constructor
+      const parsed = new Date(year, month - 1, day); 
+      if (!isNaN(parsed.getTime())) {
+        dateToOpen = parsed;
+      }
+    }
+
+    setPickerDate(dateToOpen);
+    setPickerMode(type);
+  };
+
+  // 3. Handle Picker Selection
+  const onDateSelected = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setPickerMode(null);
+    }
+    
+    if (selectedDate) {
+      // Format Date object back to DD/MM/YYYY string for the INPUT
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const year = selectedDate.getFullYear();
+      const dateString = `${day}/${month}/${year}`;
+
+      if (pickerMode === 'dob') setDob(dateString);
+      if (pickerMode === 'job') setJobStartDate(dateString);
+      
+      if (Platform.OS === 'ios') {
+        setPickerMode(null);
+      }
+    } else {
+        setPickerMode(null);
+    }
+  };
+
+  const handleSave = async () => {
+    // Basic Validation
+    if (!fullName || !company || !jobTitle) {
+      Alert.alert('Missing Info', 'Please fill in Name, Company, and Job Title.');
       return;
     }
 
-    if (!user) {
-      Alert.alert('Error', 'No user found. Please log in again.');
-      return;
-    }
-
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      // Construct tags array by filtering out empty strings
-      const tagsArray: string[] = [tag1, tag2, tag3]
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !user.email) throw new Error('No authenticated user found');
 
-      // Prepare profile update data
-      const profileData: ProfileUpdateData = {
-        bio: bio.trim(),
-        phone_number: phoneNumber.trim(),
-        job_title: jobTitle.trim(),
-        company: company.trim(),
-        industry: industry.trim(),
-        linkedin_url: linkedinUrl.trim(),
-        batch_year: batchYear.trim(),
-        dob: dob.trim(),
-        job_start_date: jobStartDate.trim(),
+      // --- DATE CONVERTER HELPER ---
+      // Converts "20/05/2004" -> "2004-05-20" for Supabase
+      const formatForDB = (dateString) => {
+        if (!dateString || dateString.length !== 10) return null;
+        const [day, month, year] = dateString.split('/');
+        return `${year}-${month}-${day}`;
+      };
+
+      const tagsArray = [tag1, tag2, tag3]
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      const updates = {
+        id: user.id,
+        email: user.email,          
+        full_name: fullName,
+        company: company,
+        job_title: jobTitle,
+        industry: industry,
+        location: location,
+        linkedin_url: linkedin,
+        bio: bio,
+        phone_number: phone,
+        batch_year: batchYear,
+        
+        // Use the converter here!
+        dob: formatForDB(dob), 
+        job_start_date: formatForDB(jobStartDate),
+        
         tags: tagsArray,
+        updated_at: new Date(),
         is_profile_complete: true,
       };
 
-      // Update profile in database
-      const { error } = await supabase
-        .from('profiles')
-        .update(profileData)
-        .eq('id', user.id);
+      const { error } = await supabase.from('profiles').upsert(updates);
 
       if (error) {
+        console.error('Supabase Error:', error);
         throw error;
       }
+       
+      router.replace('/(tabs)/home');
 
-      // Success! Show success animation
-      setIsSuccess(true);
-      
-      // Wait exactly 2 seconds, then navigate to home
-      setTimeout(() => {
-        router.replace('/(tabs)/home');
-      }, 2000);
     } catch (error: any) {
-      console.error('Profile update error:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'Failed to update profile. Please try again.'
-      );
+      Alert.alert('Error', error.message || 'Failed to save profile');
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Success Screen Component
-  if (isSuccess) {
-    return (
-      <ScreenWrapper>
-        <View style={styles.successContainer}>
-          <View style={styles.checkmarkCircle}>
-            <Text style={styles.checkmark}>✓</Text>
-          </View>
-          <Text style={styles.successTitle}>Profile Setup Complete</Text>
-          <Text style={styles.successSubtitle}>Redirecting you to home...</Text>
-        </View>
-      </ScreenWrapper>
-    );
-  }
-
-  // Main Form Screen
   return (
     <ScreenWrapper>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={{ flex: 1 }}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Complete Your Profile</Text>
-          <Text style={styles.subtitle}>
-            All fields are mandatory. Please provide accurate information.
-          </Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.container}>
+           
+          <View style={styles.header}>
+            <Text style={styles.title}>Complete Your Profile</Text>
+            <Text style={styles.subtitle}>Fill in your details to join the community.</Text>
+          </View>
 
-        <View style={styles.form}>
-          {/* Personal & Professional Details Section */}
-          <Text style={styles.sectionHeader}>Personal & Professional Details</Text>
+          <View style={styles.form}>
+            
+            {/* ... Basic Info ... */}
+            <Text style={styles.sectionHeader}>Basic Info</Text>
 
-          <Input
-            label={<Text style={styles.label}>Bio <Text style={styles.required}>*</Text></Text>}
-            placeholder="Tell us about yourself (min. 10 characters)..."
-            value={bio}
-            onChangeText={setBio}
-            multiline
-            numberOfLines={4}
-            style={styles.bioInput}
-            textAlignVertical="top"
-            autoCapitalize="sentences"
-          />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name *</Text>
+              <TextInput style={styles.input} placeholder="Ex. Gaurang Patil" placeholderTextColor="#666" value={fullName} onChangeText={setFullName} />
+            </View>
 
-          <Input
-            label={<Text style={styles.label}>Phone Number <Text style={styles.required}>*</Text></Text>}
-            placeholder="+1 (555) 123-4567"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-          />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput style={styles.input} placeholder="+91 98765..." placeholderTextColor="#666" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+            </View>
 
-          <Input
-            label={<Text style={styles.label}>Date of Birth <Text style={styles.required}>*</Text></Text>}
-            placeholder="YYYY-MM-DD (e.g., 1990-05-15)"
-            value={dob}
-            onChangeText={setDob}
-            keyboardType="numbers-and-punctuation"
-            maxLength={10}
-          />
+            <View style={styles.row}>
+              {/* DOB FIELD WITH ICON */}
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                <Text style={styles.label}>Date of Birth</Text>
+                
+                <View style={styles.dateContainer}>
+                    <TextInput 
+                      style={styles.dateInput} 
+                      placeholder="DD/MM/YYYY" 
+                      placeholderTextColor="#666" 
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      value={dob} 
+                      onChangeText={(text) => handleDateChange(text, setDob)} 
+                    />
+                    <TouchableOpacity onPress={() => openDatePicker('dob')}>
+                        <Ionicons name="calendar-outline" size={20} color="#666" style={{ marginRight: 10 }} />
+                    </TouchableOpacity>
+                </View>
 
-          <Input
-            label={<Text style={styles.label}>Job Title <Text style={styles.required}>*</Text></Text>}
-            placeholder="e.g. Software Engineer"
-            value={jobTitle}
-            onChangeText={setJobTitle}
-            autoCapitalize="words"
-          />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Location</Text>
+                <TextInput style={styles.input} placeholder="City, Country" placeholderTextColor="#666" value={location} onChangeText={setLocation} />
+              </View>
+            </View>
 
-          <Input
-            label={<Text style={styles.label}>Company <Text style={styles.required}>*</Text></Text>}
-            placeholder="e.g. Acme Inc."
-            value={company}
-            onChangeText={setCompany}
-            autoCapitalize="words"
-          />
+            {/* ... Professional ... */}
+            <Text style={styles.sectionHeader}>Professional</Text>
 
-          <Input
-            label={<Text style={styles.label}>Job Start Date <Text style={styles.required}>*</Text></Text>}
-            placeholder="YYYY-MM-DD (e.g., 2023-01-15)"
-            value={jobStartDate}
-            onChangeText={setJobStartDate}
-            keyboardType="numbers-and-punctuation"
-            maxLength={10}
-          />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Job Title *</Text>
+              <TextInput style={styles.input} placeholder="Ex. Software Engineer" placeholderTextColor="#666" value={jobTitle} onChangeText={setJobTitle} />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Company / College *</Text>
+              <TextInput style={styles.input} placeholder="Ex. Google / IIT Bombay" placeholderTextColor="#666" value={company} onChangeText={setCompany} />
+            </View>
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                <Text style={styles.label}>Industry</Text>
+                <TextInput style={styles.input} placeholder="Ex. Fintech" placeholderTextColor="#666" value={industry} onChangeText={setIndustry} />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Batch Year</Text>
+                <TextInput style={styles.input} placeholder="Ex. 2026" placeholderTextColor="#666" keyboardType="numeric" value={batchYear} onChangeText={setBatchYear} />
+              </View>
+            </View>
 
-          <Input
-            label={<Text style={styles.label}>Industry <Text style={styles.required}>*</Text></Text>}
-            placeholder="e.g. Technology"
-            value={industry}
-            onChangeText={setIndustry}
-            autoCapitalize="words"
-          />
+            {/* JOB START DATE WITH ICON */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Job Start Date</Text>
+              <View style={styles.dateContainer}>
+                  <TextInput 
+                    style={styles.dateInput} 
+                    placeholder="DD/MM/YYYY" 
+                    placeholderTextColor="#666" 
+                    keyboardType="number-pad"
+                    maxLength={10}
+                    value={jobStartDate} 
+                    onChangeText={(text) => handleDateChange(text, setJobStartDate)} 
+                  />
+                  <TouchableOpacity onPress={() => openDatePicker('job')}>
+                      <Ionicons name="calendar-outline" size={20} color="#666" style={{ marginRight: 10 }} />
+                  </TouchableOpacity>
+              </View>
+            </View>
 
-          <Input
-            label={<Text style={styles.label}>LinkedIn URL <Text style={styles.required}>*</Text></Text>}
-            placeholder="https://linkedin.com/in/yourprofile"
-            value={linkedinUrl}
-            onChangeText={setLinkedinUrl}
-            keyboardType="url"
-            autoCapitalize="none"
-          />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>LinkedIn URL</Text>
+              <TextInput style={styles.input} placeholder="https://linkedin.com/in/..." placeholderTextColor="#666" autoCapitalize="none" value={linkedin} onChangeText={setLinkedin} />
+            </View>
 
-          <Input
-            label={<Text style={styles.label}>Batch Year <Text style={styles.required}>*</Text></Text>}
-            placeholder="e.g. 2024"
-            value={batchYear}
-            onChangeText={setBatchYear}
-            keyboardType="number-pad"
-            maxLength={4}
-          />
+            {/* ... Personal ... */}
+            <Text style={styles.sectionHeader}>About You</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Top 3 Interests / Tags</Text>
+              <View style={styles.row}>
+                <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Coding" placeholderTextColor="#666" value={tag1} onChangeText={setTag1} />
+                <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Hiking" placeholderTextColor="#666" value={tag2} onChangeText={setTag2} />
+                <TextInput style={[styles.input, { flex: 1 }]} placeholder="Chess" placeholderTextColor="#666" value={tag3} onChangeText={setTag3} />
+              </View>
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bio</Text>
+              <TextInput style={[styles.input, styles.textArea]} placeholder="Tell us about yourself..." placeholderTextColor="#666" multiline numberOfLines={4} value={bio} onChangeText={setBio} />
+            </View>
 
-          {/* Interests / Tags Section */}
-          <Text style={[styles.sectionHeader, styles.tagsHeader]}>
-            Interests / Tags (Enter 3)
-          </Text>
+            <TouchableOpacity style={styles.button} onPress={handleSave} disabled={loading}>
+              <Text style={styles.buttonText}>{loading ? 'Saving Profile...' : 'Complete Setup 🚀'}</Text>
+            </TouchableOpacity>
 
-          <Input
-            label={<Text style={styles.label}>Tag 1 <Text style={styles.required}>*</Text></Text>}
-            placeholder="e.g. React Native"
-            value={tag1}
-            onChangeText={setTag1}
-            autoCapitalize="words"
-          />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
-          <Input
-            label="Tag 2"
-            placeholder="e.g. Machine Learning"
-            value={tag2}
-            onChangeText={setTag2}
-            autoCapitalize="words"
-          />
+      {/* --- INVISIBLE DATE PICKER COMPONENT --- */}
+      {/* It only renders when pickerMode is set. On Android it pops up. */}
+      {pickerMode && (
+        <DateTimePicker
+          value={pickerDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onDateSelected}
+          maximumDate={new Date()} 
+        />
+      )}
 
-          <Input
-            label="Tag 3"
-            placeholder="e.g. Cloud Computing"
-            value={tag3}
-            onChangeText={setTag3}
-            autoCapitalize="words"
-          />
-
-          <Text style={styles.requiredNote}>
-            <Text style={styles.required}>*</Text> indicates mandatory fields
-          </Text>
-
-          <Button
-            title="Complete Setup"
-            onPress={handleCompleteSetup}
-            isLoading={isLoading}
-            style={styles.submitButton}
-          />
-        </View>
-      </ScrollView>
     </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
+  container: { padding: 20, paddingBottom: 50 },
+  header: { marginBottom: 20 },
+  title: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 5 },
+  subtitle: { fontSize: 16, color: '#aaa' },
+  sectionHeader: { fontSize: 18, fontWeight: 'bold', color: '#FF5722', marginTop: 20, marginBottom: 10 },
+  form: { gap: 15 },
+  row: { flexDirection: 'row' },
+  inputGroup: { gap: 6 },
+  label: { color: '#ddd', fontSize: 14, fontWeight: '500' },
+  
+  // Standard Input
+  input: { 
+    backgroundColor: '#1E1E1E', 
+    color: 'white', 
+    padding: 14, 
+    borderRadius: 8, 
+    borderWidth: 1, 
+    borderColor: '#333',
+    fontSize: 16
   },
-  contentContainer: {
-    paddingVertical: 24,
-    paddingBottom: 40,
-  },
-  header: {
-    marginBottom: 32,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#A1A1AA',
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  form: {
-    width: '100%',
-  },
-  sectionHeader: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  tagsHeader: {
-    marginTop: 24,
-  },
-  label: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  required: {
-    color: '#EF4444',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  bioInput: {
-    minHeight: 100,
-    paddingTop: 16,
-  },
-  requiredNote: {
-    color: '#71717A',
-    fontSize: 14,
-    marginBottom: 24,
-    marginTop: 8,
-  },
-  submitButton: {
-    marginTop: 8,
-    marginBottom: 20,
-  },
-  successContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  
+  // Container for Date Input + Icon
+  dateContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    backgroundColor: '#1E1E1E', 
+    borderRadius: 8, 
+    borderWidth: 1, 
+    borderColor: '#333',
   },
-  checkmarkCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#22C55E',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
+  // The actual text input inside the container needs no borders
+  dateInput: {
+    flex: 1,
+    color: 'white', 
+    padding: 14, 
+    fontSize: 16
   },
-  checkmark: {
-    fontSize: 64,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  successTitle: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  successSubtitle: {
-    color: '#A1A1AA',
-    fontSize: 16,
-    textAlign: 'center',
-  },
+
+  textArea: { height: 100, textAlignVertical: 'top' },
+  button: { backgroundColor: '#fff', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 20 },
+  buttonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
 });

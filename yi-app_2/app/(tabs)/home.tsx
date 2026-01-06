@@ -38,6 +38,8 @@ interface Event {
 }
 
 export default function Home() {
+  console.log('Rendering Home Screen');
+  
   const { user } = useAuth();
   const router = useRouter();
   
@@ -197,7 +199,8 @@ export default function Home() {
   }
 
   return (
-    <ScreenWrapper style={styles.wrapper}>
+    <View style={{ flex: 1, backgroundColor: 'red' }}>
+      <ScreenWrapper style={styles.wrapper}>
       {/* Sticky Header */}
       <View style={styles.stickyHeader}>
         <View style={styles.searchContainer}>
@@ -383,6 +386,7 @@ export default function Home() {
       
       <FloatingChatButton />
     </ScreenWrapper>
+    </View>
   );
 }
 

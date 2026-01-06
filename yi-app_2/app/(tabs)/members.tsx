@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScreenWrapper from '../../components/ScreenWrapper';
 import MemberCard from '../../components/MemberCard';
 import FilterModal from '../../components/FilterModal';
-import { Profile, getAllProfiles, createConnectionRequest, getConnectionStatus } from '../../lib/database';
+import { Profile, getAllProfiles } from '../../lib/database';
 import { useAuth } from '../../lib/AuthContext';
 import FloatingChatButton from '../../components/FloatingChatButton';
 
@@ -31,24 +31,12 @@ export default function Members() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string>('All');
-  
-  // Connection state
-  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, 'none' | 'pending' | 'connected'>>({});
-  const [connectingIds, setConnectingIds] = useState<Set<string>>(new Set());
 
   // Fetch all profiles on mount
   const fetchProfiles = async () => {
     try {
       const data = await getAllProfiles();
       setProfiles(data);
-      
-      // Fetch connection statuses for all profiles
-      const statuses: Record<string, 'none' | 'pending' | 'connected'> = {};
-      for (const profile of data) {
-        const status = await getConnectionStatus(profile.id);
-        statuses[profile.id] = status;
-      }
-      setConnectionStatuses(statuses);
     } catch (error) {
       console.error('Error fetching profiles:', error);
     } finally {
@@ -124,28 +112,6 @@ export default function Members() {
     });
   }, [filteredByTag, searchQuery]);
 
-  // Connection handlers
-  const handleConnect = async (profileId: string) => {
-    setConnectingIds((prev) => new Set(prev).add(profileId));
-
-    const result = await createConnectionRequest(profileId);
-
-    if (result.success) {
-      setConnectionStatuses((prev) => ({
-        ...prev,
-        [profileId]: 'pending',
-      }));
-    } else {
-      console.error('Failed to create connection:', result.error);
-    }
-
-    setConnectingIds((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(profileId);
-      return newSet;
-    });
-  };
-
   const handleMemberPress = (memberId: string) => {
     router.push(`/member/${memberId}`);
   };
@@ -217,10 +183,7 @@ export default function Members() {
           renderItem={({ item }) => (
             <MemberCard
               profile={item}
-              connectionStatus={connectionStatuses[item.id] || 'none'}
               onPress={() => handleMemberPress(item.id)}
-              onConnect={() => handleConnect(item.id)}
-              isConnecting={connectingIds.has(item.id)}
             />
           )}
           contentContainerStyle={styles.listContent}
